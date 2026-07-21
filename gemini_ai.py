@@ -1,32 +1,3 @@
-"""
-Gemini AI integration for the "Test Your AI" feature.
-
-Calls Google's Gemini 3.5 Flash model using the participant's current prompt
-as the system instruction and their test question as the user turn — this is
-the real model-under-test for the competition.
-
---------------------------------------------------------------------------
-SETUP — you need a Gemini API key
---------------------------------------------------------------------------
-1. Get a key from https://aistudio.google.com/apikey
-2. Provide it one of two ways:
-
-   a) Streamlit secrets (recommended for `streamlit run`):
-      Create a file at .streamlit/secrets.toml next to app.py containing:
-
-          GEMINI_API_KEY = "your-key-here"
-
-   b) Environment variable (works for any script, e.g. generate_report.py
-      doesn't need this, but if you ever call gemini_ai.py standalone):
-
-          setx GEMINI_API_KEY "your-key-here"      (Windows, new terminal after)
-          export GEMINI_API_KEY="your-key-here"    (macOS/Linux)
-
-If no key is found, or the API call fails for any reason, generate_response()
-returns a clear on-screen error message rather than raising an exception, so
-one bad call doesn't crash the competition UI.
---------------------------------------------------------------------------
-"""
 
 import os
 
