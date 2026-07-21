@@ -2,7 +2,6 @@
 import time
 import importlib
 import streamlit as st
-from streamlit_autorefresh import st_autorefresh
 
 import db
 from gemini_ai import generate_response
@@ -29,6 +28,28 @@ def render_html(text: str) -> str:
     """
     lines = [line.strip() for line in text.strip("\n").splitlines()]
     return "\n".join(lines)
+
+
+@st.fragment(run_every=1)
+def render_timer_fragment(start_time: float, duration_seconds: int, is_locked: bool) -> None:
+    elapsed = time.time() - start_time
+    remaining = max(0.0, duration_seconds - elapsed)
+    mins, secs = divmod(int(max(0, remaining)), 60)
+    timer_class = "timer-box"
+    if remaining <= 0:
+        timer_class += " timer-danger"
+    elif remaining <= 5 * 60:
+        timer_class += " timer-warning"
+    st.markdown(
+        render_html(f"""
+        <div class="{timer_class}">
+            <div class="label">Time Remaining</div>
+            <div class="value">{mins:02d}:{secs:02d}</div>
+        </div>
+        """),
+        unsafe_allow_html=True,
+    )
+
 # ---------------------------------------------------------------------------
 # Page config & global styling
 # ---------------------------------------------------------------------------
@@ -43,6 +64,10 @@ CUSTOM_CSS = """
 <style>
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
+    header {visibility: hidden;}
+    [data-testid="stToolbar"] {visibility: hidden; display: none;}
+    [data-testid="stStatusWidget"] {visibility: hidden; display: none;}
+    [data-testid="stDecoration"] {visibility: hidden; display: none;}
 
     .stApp {
         background: #100e1b;
@@ -370,16 +395,6 @@ if time_up and not participant["final_submitted"]:
     cache["participant"] = participant
     locked = True
 
-if not locked and not st.session_state.get("ai_call_pending", False) and not st.session_state.get("judge_eval_pending", False):
-    st_autorefresh(interval=1000, key=f"timer_refresh_{participant_id}")
-
-mins, secs = divmod(int(max(0, remaining)), 60)
-timer_class = "timer-box"
-if remaining <= 0:
-    timer_class += " timer-danger"
-elif remaining <= 5 * 60:
-    timer_class += " timer-warning"
-
 # ---------------------------------------------------------------------------
 # Layout: left workspace (70%) / right character reference (30%)
 # ---------------------------------------------------------------------------
@@ -389,15 +404,7 @@ current_round = participant["current_round"]
 
 # ================================= LEFT PANEL =================================
 with left:
-    st.markdown(
-        render_html(f"""
-        <div class="{timer_class}">
-            <div class="label">Time Remaining</div>
-            <div class="value">{mins:02d}:{secs:02d}</div>
-        </div>
-        """),
-        unsafe_allow_html=True,
-    )
+    render_timer_fragment(participant["start_time"], db.COMPETITION_DURATION_SECONDS, locked)
 
     if locked:
         if participant["final_submitted"] and not time_up:
