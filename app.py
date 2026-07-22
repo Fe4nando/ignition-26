@@ -1,4 +1,4 @@
-﻿import os
+import os
 import time
 import importlib
 import streamlit as st
@@ -273,14 +273,12 @@ if "judge_eval_ran" not in st.session_state:
 if "judge_eval_pending" not in st.session_state:
     st.session_state.judge_eval_pending = False
 
-bottom_banner_path = asset_path("Bottom Banner.png")
+bottom_banner_path = asset_path("foot.png")
 
 
 def render_bottom_banner():
     if bottom_banner_path:
-        footer_left, footer_right = st.columns([3, 7], gap="large")
-        with footer_left:
-            st.image(bottom_banner_path, use_container_width=True)
+        st.image(bottom_banner_path, width="stretch")
 
 
 if not st.session_state.participant_id:
@@ -716,7 +714,6 @@ with right:
     )
 
 render_bottom_banner()
-
 
 
 
