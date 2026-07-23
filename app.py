@@ -22,7 +22,7 @@ def render_html(text: str) -> str:
     Streamlit's markdown renderer treats any line indented 4+ spaces as a
     preformatted code block. textwrap.dedent() only removes the *common*
     leading whitespace, which isn't enough once a blank line splits the HTML
-    into multiple blocks â€” the next block's lines still carry their original
+    into multiple blocks - the next block's lines still carry their original
     (now non-common) indentation and get reinterpreted as code. Stripping
     every line individually avoids that entirely, regardless of blank lines.
     """
@@ -72,6 +72,34 @@ CUSTOM_CSS = """
     .stApp {
         background: #100e1b;
         color: #ffffff;
+    }
+
+    .stApp, .stApp p, .stApp span, .stApp label, .stApp li, .stApp div, .stApp small {
+        color: #ffffff;
+    }
+
+    .stApp [data-testid="stCaptionContainer"] p,
+    .stApp [data-testid="stMarkdownContainer"] p {
+        color: #d1d5db;
+    }
+
+    .stTextInput input,
+    .stTextArea textarea {
+        background-color: #131827 !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(255, 255, 255, 0.14) !important;
+    }
+
+    .stTextInput input::placeholder,
+    .stTextArea textarea::placeholder {
+        color: #94a3b8 !important;
+        opacity: 1 !important;
+    }
+
+    .stTextInput input:focus,
+    .stTextArea textarea:focus {
+        border-color: #f7d58a !important;
+        box-shadow: 0 0 0 1px rgba(247, 213, 138, 0.35) !important;
     }
 
     .block-container {
@@ -214,17 +242,27 @@ CUSTOM_CSS = """
     }
     .word-count-ok { color: #4ade80; font-weight: 600; }
     .word-count-over { color: #fb7185; font-weight: 700; }
-    .stButton > button {
-        background: linear-gradient(90deg, #967633 0%, #b89446 100%);
-        color: #ffffff;
-        border: none;
+    .stButton > button,
+    div[data-testid="stFormSubmitButton"] button,
+    button[kind="primary"] {
+        background: linear-gradient(90deg, #967633 0%, #b89446 100%) !important;
+        color: #ffffff !important;
+        border: none !important;
         border-radius: 12px;
         font-weight: 700;
     }
-    .stButton > button:hover {
-        background: linear-gradient(90deg, #b89446 0%, #967633 100%);
-        color: #ffffff;
-        border: none;
+    .stButton > button:hover,
+    div[data-testid="stFormSubmitButton"] button:hover,
+    button[kind="primary"]:hover {
+        background: linear-gradient(90deg, #b89446 0%, #967633 100%) !important;
+        color: #ffffff !important;
+        border: none !important;
+    }
+
+    .chat-bubble-user,
+    .chat-bubble-ai {
+        color: #ffffff !important;
+        border: 1px solid rgba(255, 255, 255, 0.08);
     }
 </style>
 """
@@ -239,7 +277,7 @@ if "db_initialized" not in st.session_state:
 # ---------------------------------------------------------------------------
 CHARACTER = {
     "name": "Nikola Tesla",
-    "years": "1856â€“1943",
+    "years": "1856-1943",
     "knowledge_ends": 1943,
     "background": (
         "Serbian-American inventor and electrical engineer renowned for his contributions "
@@ -253,7 +291,7 @@ CHARACTER = {
 }
 
 ROUND_GOALS = {
-    1: "Create the basic identity of the AI â€” who the character is, their role, and basic behaviour.",
+    1: "Create the basic identity of the AI - who the character is, their role, and basic behaviour.",
     2: "Add personality, language style, behaviour, knowledge boundaries, rules, and constraints.",
     3: "Finalize: stronger constraints, natural behaviour, historical consistency, response "
        "formatting, and handling of difficult questions.",
@@ -365,7 +403,7 @@ else:
 # Defensive guard: if session state points at a participant_id that isn't
 # actually in the database (e.g. the app was restarted, the DB file was
 # reset, or the script was run outside a normal `streamlit run` session),
-# don't crash â€” just send them back to the login screen.
+    # Defensive guard: if session state points at a participant_id that isn't
 if participant is None:
     st.session_state.participant_id = None
     st.session_state.participant_cache = None
@@ -471,7 +509,7 @@ with left:
         unsafe_allow_html=True,
     )
     if over_limit:
-        st.caption("âš ï¸ You are over the word limit. Trim your prompt before submitting.")
+            st.caption("Warning: you are over the word limit. Trim your prompt before submitting.")
 
     st.markdown("---")
 
@@ -518,7 +556,7 @@ with left:
             use_container_width=True,
         )
 
-    # Phase 1: click received â€” lock immediately and rerun before calling
+    # Phase 1: click received - lock immediately and rerun before calling
     # Gemini, so the UI reflects "in progress" right away.
     if ask_clicked and question.strip() and not request_in_flight:
         st.session_state.ai_call_pending = True
@@ -528,7 +566,7 @@ with left:
         st.rerun()
 
     # Phase 2: the actual (slow) call happens here, only on the run where
-    # the lock is already set â€” the button is disabled the whole time.
+    # the lock is already set - the button is disabled the whole time.
     if st.session_state.ai_call_pending and st.session_state.pending_round == view_round:
         prior_history = cache["conversation"].get(view_round, [])
         with st.spinner("Asking Gemini..."):
