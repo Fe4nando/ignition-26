@@ -337,8 +337,8 @@ if not st.session_state.participant_id:
         st.markdown("### Start Session")
         st.caption("Use your chest number to open your workspace.")
         with st.form("login_form"):
-            pid = st.text_input("Chest Number", placeholder="e.g. 014")
-            name = st.text_input("Display name (optional)", placeholder="e.g. Jordan")
+            pid = st.text_input("Chest Number", placeholder="e.g. 0067")
+            name = st.text_input("Display name (optional)", placeholder="e.g. Amaan Shaji")
             started = st.form_submit_button("Begin Competition", type="primary", use_container_width=True)
     if started and pid.strip():
         st.session_state.participant_id = pid.strip()
