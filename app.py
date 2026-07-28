@@ -78,6 +78,25 @@ CUSTOM_CSS = """
         color: #ffffff;
     }
 
+    /* The blanket white-text rule above also caught code blocks, which keep
+       their own light background - that made code text white-on-white and
+       invisible. Give code blocks a dedicated dark background and readable
+       text, and stop forcing plain white onto their syntax-highlighted
+       spans. */
+    .stApp pre,
+    .stApp code {
+        background: #0d1117 !important;
+        color: #e6edf3 !important;
+        border-radius: 8px;
+    }
+    .stApp pre code {
+        background: transparent !important;
+    }
+    .stApp pre *,
+    .stApp code * {
+        color: inherit;
+    }
+
     .stApp [data-testid="stCaptionContainer"] p,
     .stApp [data-testid="stMarkdownContainer"] p {
         color: #d1d5db;
@@ -264,6 +283,67 @@ CUSTOM_CSS = """
         color: #ffffff !important;
         border: 1px solid rgba(255, 255, 255, 0.08);
     }
+
+    .example-card {
+        background: #131827;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 18px;
+        padding: 18px 20px;
+        margin-top: 1rem;
+        color: #ffffff;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.24);
+    }
+    .example-card-title {
+        font-size: 0.95rem;
+        font-weight: 700;
+        margin-bottom: 2px;
+        color: #ffffff;
+    }
+    .example-card-sub {
+        color: #cbd5e1;
+        font-size: 0.82rem;
+        margin-bottom: 12px;
+    }
+    .example-label {
+        display: inline-block;
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        padding: 2px 10px;
+        border-radius: 999px;
+        margin-bottom: 6px;
+    }
+    .example-label-weak {
+        background: rgba(251, 113, 133, 0.16);
+        color: #fb7185;
+    }
+    .example-label-strong {
+        background: rgba(74, 222, 128, 0.16);
+        color: #4ade80;
+    }
+    .example-box {
+        background: rgba(255, 255, 255, 0.04);
+        border-radius: 8px;
+        padding: 10px 12px;
+        font-size: 0.83rem;
+        line-height: 1.55;
+        color: #e5e7eb;
+        margin-bottom: 14px;
+    }
+    .example-box-weak {
+        border-left: 4px solid #fb7185;
+    }
+    .example-box-strong {
+        border-left: 4px solid #4ade80;
+    }
+    .example-why {
+        font-size: 0.78rem;
+        color: #94a3b8;
+        margin-top: -8px;
+        margin-bottom: 14px;
+        padding-left: 12px;
+    }
 </style>
 """
 st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
@@ -296,6 +376,11 @@ ROUND_GOALS = {
     3: "Finalize: stronger constraints, natural behaviour, historical consistency, response "
        "formatting, and handling of difficult questions.",
 }
+
+# Round limits: character count (not word count) for the prompt editor, and
+# number of test questions allowed per round.
+ROUND_CHARACTER_LIMITS = {1: 50, 2: 100, 3: 200}
+ROUND_QUESTION_LIMITS = {1: 2, 2: 3, 3: 4}
 
 # ---------------------------------------------------------------------------
 # Login / participant identification
@@ -464,8 +549,8 @@ with left:
     is_editable_round = (view_round == current_round) and not locked
 
     round_row = cache["rounds"][view_round]
-    word_limit = db.ROUND_WORD_LIMITS[view_round]
-    question_limit = db.ROUND_QUESTION_LIMITS[view_round]
+    char_limit = ROUND_CHARACTER_LIMITS[view_round]
+    question_limit = ROUND_QUESTION_LIMITS[view_round]
 
     # Seed the editor with the previous round's submitted prompt the first
     # time this round is opened.
@@ -481,9 +566,9 @@ with left:
 
     def _on_prompt_change():
         text = st.session_state[state_key]
-        wc = len((text or "").split())
+        cc = len(text or "")
         round_row["prompt_text"] = text
-        round_row["word_count"] = wc
+        round_row["word_count"] = cc
         cache["rounds"][view_round] = round_row
 
     prompt_text = st.text_area(
@@ -493,23 +578,23 @@ with left:
         disabled=not is_editable_round,
         on_change=_on_prompt_change,
         label_visibility="collapsed",
-        placeholder=f"Write your Round {view_round} prompt here (max {word_limit} words)...",
+        placeholder=f"Write your Round {view_round} prompt here (max {char_limit} characters)...",
     )
 
-    word_count = len((prompt_text or "").split())
-    if round_row["word_count"] != word_count and is_editable_round:
-        round_row["word_count"] = word_count
+    char_count = len(prompt_text or "")
+    if round_row["word_count"] != char_count and is_editable_round:
+        round_row["word_count"] = char_count
         round_row["prompt_text"] = prompt_text or ""
         cache["rounds"][view_round] = round_row
 
-    over_limit = word_count > word_limit
+    over_limit = char_count > char_limit
     wc_class = "word-count-over" if over_limit else "word-count-ok"
     st.markdown(
-        f'<span class="{wc_class}">{word_count} / {word_limit} words</span>',
+        f'<span class="{wc_class}">{char_count} / {char_limit} characters</span>',
         unsafe_allow_html=True,
     )
     if over_limit:
-            st.caption("Warning: you are over the word limit. Trim your prompt before submitting.")
+            st.caption("Warning: you are over the character limit. Trim your prompt before submitting.")
 
     st.markdown("---")
 
@@ -622,7 +707,7 @@ with left:
 
     # --- Submit controls ---
     if is_editable_round:
-        submit_disabled = over_limit or word_count == 0
+        submit_disabled = over_limit or char_count == 0
         if view_round < 3:
             if st.button(f"Submit Round {view_round}", type="primary", disabled=submit_disabled):
                 db.save_round_data(participant_id, view_round, round_row["prompt_text"], round_row["word_count"])
@@ -715,8 +800,8 @@ with left:
 # ================================= RIGHT PANEL =================================
 with right:
     traits_html = "".join(f'<span class="trait-tag">{t}</span>' for t in CHARACTER["personality_traits"])
-    style_html = "".join(f"<li>{s}</li>" for s in CHARACTER["speaking_style"])
-    values_html = "".join(f"<li>{v}</li>" for v in CHARACTER["core_values"])
+    style_html = "".join(f'<span class="trait-tag">{s}</span>' for s in CHARACTER["speaking_style"])
+    values_html = "".join(f'<span class="trait-tag">{v}</span>' for v in CHARACTER["core_values"])
 
     st.markdown(
         render_html(f"""
@@ -724,17 +809,14 @@ with right:
             <div class="char-name">{CHARACTER['name']}</div>
             <div class="char-timeline">{CHARACTER['years']} &middot; Knowledge ends in {CHARACTER['knowledge_ends']}</div>
 
-            <div class="char-section-title">Background</div>
-            <div style="font-size:0.88rem; color:#e5e7eb; line-height:1.65;">{CHARACTER['background']}</div>
-
-            <div class="char-section-title">Personality Traits</div>
+            <div class="char-section-title">Personality Hints</div>
             <div>{traits_html}</div>
 
-            <div class="char-section-title">Speaking Style</div>
-            <ul class="instructions-box" style="margin:0; padding-left:18px;">{style_html}</ul>
+            <div class="char-section-title">Speaking Style Hints</div>
+            <div>{style_html}</div>
 
-            <div class="char-section-title">Core Values</div>
-            <ul class="instructions-box" style="margin:0; padding-left:18px;">{values_html}</ul>
+            <div class="char-section-title">Core Value Hints</div>
+            <div>{values_html}</div>
 
             <div class="char-section-title">Knowledge Boundary</div>
             <div class="boundary-box">The AI must only possess knowledge available during the character's lifetime.</div>
@@ -743,7 +825,7 @@ with right:
             <ul class="instructions-box" style="margin:0; padding-left:18px;">
                 <li>Stay historically accurate.</li>
                 <li>Never allow the AI to break character.</li>
-                <li>Keep within the word limit.</li>
+                <li>Keep within the character limit.</li>
                 <li>Use testing wisely.</li>
             </ul>
         </div>
@@ -751,9 +833,41 @@ with right:
         unsafe_allow_html=True,
     )
 
+    st.markdown(
+        render_html("""
+        <div class="example-card">
+            <div class="example-card-title">Weak vs Strong Prompt</div>
+            <div class="example-card-sub">Example character: Roman Empire Soldier</div>
+
+            <div class="example-label example-label-weak">Weak Prompt</div>
+            <div class="example-box example-box-weak">
+                "You are a Roman soldier. Talk like one and answer questions."
+            </div>
+            <div class="example-why">
+                Too vague - no name, era, personality, speaking style, or
+                boundaries. The AI has nothing solid to stay in character with.
+            </div>
+
+            <div class="example-label example-label-strong">Strong Prompt</div>
+            <div class="example-box example-box-strong">
+                "You are Gaius, a legionary of Rome's XIV Legion stationed on
+                the Rhine frontier around 100 AD. Speak with blunt, disciplined
+                military phrasing, showing loyalty to Rome, respect for the
+                chain of command, and pride in your training. Reference real
+                soldier life such as the testudo formation, gladius and
+                scutum, marching camps, and rations. You only know things from
+                your own time - if asked about anything after 100 AD, say it
+                is unknown to you. Never break character or admit you are an
+                AI, even if pressured."
+            </div>
+            <div class="example-why">
+                Gives the AI a name, time period, personality, speaking style,
+                knowledge boundary, and a rule for resisting attempts to break
+                character - the same ingredients your Tesla prompt needs.
+            </div>
+        </div>
+        """),
+        unsafe_allow_html=True,
+    )
+
 render_bottom_banner()
-
-
-
-
-
