@@ -379,7 +379,7 @@ ROUND_GOALS = {
 
 # Round limits: character count (not word count) for the prompt editor, and
 # number of test questions allowed per round.
-ROUND_CHARACTER_LIMITS = {1: 50, 2: 100, 3: 200}
+ROUND_CHARACTER_LIMITS = {1: 150, 2: 300, 3: 600}
 ROUND_QUESTION_LIMITS = {1: 2, 2: 3, 3: 4}
 
 # ---------------------------------------------------------------------------
