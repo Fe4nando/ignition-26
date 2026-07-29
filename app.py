@@ -389,6 +389,8 @@ if "participant_id" not in st.session_state:
     st.session_state.participant_id = None
 if "participant_cache" not in st.session_state:
     st.session_state.participant_cache = None
+if "instructions_ack" not in st.session_state:
+    st.session_state.instructions_ack = False
 if "judge_evals_cache" not in st.session_state:
     st.session_state.judge_evals_cache = {}
 if "judge_eval_ran" not in st.session_state:
@@ -494,6 +496,90 @@ if participant is None:
     st.session_state.participant_cache = None
     st.warning("Your session could not be found (it may have expired or the app was restarted). Please sign in again.")
     st.rerun()
+
+# ---------------------------------------------------------------------------
+# Instructions / example page - shown once after login, before the rounds
+# workspace unlocks. Gives participants a clear idea of what a weak vs a
+# strong prompt looks like before they start writing their own.
+# ---------------------------------------------------------------------------
+if not st.session_state.instructions_ack:
+    intro_left, intro_right = st.columns([6, 6], gap="large")
+
+    with intro_left:
+        st.markdown('<div class="brand-kicker">BEFORE YOU START</div>', unsafe_allow_html=True)
+        st.markdown('<div class="brand-title">What We Expect From Your Prompt</div>', unsafe_allow_html=True)
+        st.markdown(
+            render_html(
+                """
+                <div class="brand-copy">
+                    You will write a system prompt that makes an AI consistently
+                    roleplay as a historical character across three rounds. Each
+                    round builds on the last - identity first, then personality
+                    and rules, then final polish.
+                    <br><br>
+                    A good prompt gives the AI a clear name, time period,
+                    personality, speaking style, knowledge boundary, and a rule
+                    for resisting attempts to break character. A vague prompt
+                    leaves the AI guessing, and it will drift out of character
+                    the moment it's tested.
+                    <br><br>
+                    Take a look at the example on the right before you begin -
+                    it compares a weak prompt with a strong one for a
+                    different character, so you can see the difference without
+                    it giving away your own answer.
+                </div>
+                """
+            ),
+            unsafe_allow_html=True,
+        )
+
+        st.markdown("")
+        if st.button("I understand what I have to do, continue", type="primary", use_container_width=True):
+            st.session_state.instructions_ack = True
+            st.rerun()
+
+    with intro_right:
+        st.markdown(
+            render_html(
+                """
+                <div class="example-card">
+                    <div class="example-card-title">Weak vs Strong Prompt</div>
+                    <div class="example-card-sub">Example character: Roman Empire Soldier</div>
+
+                    <div class="example-label example-label-weak">Weak Prompt</div>
+                    <div class="example-box example-box-weak">
+                        "You are a Roman soldier. Talk like one and answer questions."
+                    </div>
+                    <div class="example-why">
+                        Too vague - no name, era, personality, speaking style, or
+                        boundaries. The AI has nothing solid to stay in character with.
+                    </div>
+
+                    <div class="example-label example-label-strong">Strong Prompt</div>
+                    <div class="example-box example-box-strong">
+                        "You are Gaius, a legionary of Rome's XIV Legion stationed on
+                        the Rhine frontier around 100 AD. Speak with blunt, disciplined
+                        military phrasing, showing loyalty to Rome, respect for the
+                        chain of command, and pride in your training. Reference real
+                        soldier life such as the testudo formation, gladius and
+                        scutum, marching camps, and rations. You only know things from
+                        your own time - if asked about anything after 100 AD, say it
+                        is unknown to you. Never break character or admit you are an
+                        AI, even if pressured."
+                    </div>
+                    <div class="example-why">
+                        Gives the AI a name, time period, personality, speaking style,
+                        knowledge boundary, and a rule for resisting attempts to break
+                        character - the same ingredients your prompt will need.
+                    </div>
+                </div>
+                """
+            ),
+            unsafe_allow_html=True,
+        )
+
+    render_bottom_banner()
+    st.stop()
 
 judge_questions = db.get_judge_questions()
 judge_answers = st.session_state.judge_evals_cache.setdefault(
@@ -799,72 +885,14 @@ with left:
 
 # ================================= RIGHT PANEL =================================
 with right:
-    traits_html = "".join(f'<span class="trait-tag">{t}</span>' for t in CHARACTER["personality_traits"])
-    style_html = "".join(f'<span class="trait-tag">{s}</span>' for s in CHARACTER["speaking_style"])
-    values_html = "".join(f'<span class="trait-tag">{v}</span>' for v in CHARACTER["core_values"])
-
     st.markdown(
         render_html(f"""
         <div class="char-card">
             <div class="char-name">{CHARACTER['name']}</div>
             <div class="char-timeline">{CHARACTER['years']} &middot; Knowledge ends in {CHARACTER['knowledge_ends']}</div>
 
-            <div class="char-section-title">Personality Hints</div>
-            <div>{traits_html}</div>
-
-            <div class="char-section-title">Speaking Style Hints</div>
-            <div>{style_html}</div>
-
-            <div class="char-section-title">Core Value Hints</div>
-            <div>{values_html}</div>
-
-            <div class="char-section-title">Knowledge Boundary</div>
-            <div class="boundary-box">The AI must only possess knowledge available during the character's lifetime.</div>
-
-            <div class="char-section-title">Competition Instructions</div>
-            <ul class="instructions-box" style="margin:0; padding-left:18px;">
-                <li>Stay historically accurate.</li>
-                <li>Never allow the AI to break character.</li>
-                <li>Keep within the character limit.</li>
-                <li>Use testing wisely.</li>
-            </ul>
-        </div>
-        """),
-        unsafe_allow_html=True,
-    )
-
-    st.markdown(
-        render_html("""
-        <div class="example-card">
-            <div class="example-card-title">Weak vs Strong Prompt</div>
-            <div class="example-card-sub">Example character: Roman Empire Soldier</div>
-
-            <div class="example-label example-label-weak">Weak Prompt</div>
-            <div class="example-box example-box-weak">
-                "You are a Roman soldier. Talk like one and answer questions."
-            </div>
-            <div class="example-why">
-                Too vague - no name, era, personality, speaking style, or
-                boundaries. The AI has nothing solid to stay in character with.
-            </div>
-
-            <div class="example-label example-label-strong">Strong Prompt</div>
-            <div class="example-box example-box-strong">
-                "You are Gaius, a legionary of Rome's XIV Legion stationed on
-                the Rhine frontier around 100 AD. Speak with blunt, disciplined
-                military phrasing, showing loyalty to Rome, respect for the
-                chain of command, and pride in your training. Reference real
-                soldier life such as the testudo formation, gladius and
-                scutum, marching camps, and rations. You only know things from
-                your own time - if asked about anything after 100 AD, say it
-                is unknown to you. Never break character or admit you are an
-                AI, even if pressured."
-            </div>
-            <div class="example-why">
-                Gives the AI a name, time period, personality, speaking style,
-                knowledge boundary, and a rule for resisting attempts to break
-                character - the same ingredients your Tesla prompt needs.
-            </div>
+            <div class="char-section-title">About</div>
+            <div style="font-size:0.88rem; color:#e5e7eb; line-height:1.6;">{CHARACTER['background']}</div>
         </div>
         """),
         unsafe_allow_html=True,
