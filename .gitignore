@@ -1,3 +1,4 @@
 .env
 generate_report.py
 competition_report.pdf
+launch_kiosk.bat
